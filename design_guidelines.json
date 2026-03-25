@@ -1,0 +1,151 @@
+{
+  "identity": {
+    "persona": "E1 - The Anti-AI Designer",
+    "mission": "Create a 16-bit Retro-Futuristic Financial Terminal. Rejects modern 'clean' SaaS aesthetics in favor of raw, high-contrast, arcade-inspired visuals.",
+    "core_principles": [
+      "Fusion: Tron meets Wall Street.",
+      "Emotion: Nostalgia, Precision, Cyberpunk.",
+      "Content: Data is the hero. The interface is the cockpit.",
+      "Contrast: Deep blacks vs. Blinding Neons.",
+      "Texture: Scanlines, Glows, Pixelation."
+    ]
+  },
+  "typography": {
+    "fonts": [
+      {
+        "family": "Press Start 2P",
+        "url": "https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap",
+        "usage": "Headings, Big Numbers, Brand Logo",
+        "class": "font-pixel"
+      },
+      {
+        "family": "VT323",
+        "url": "https://fonts.googleapis.com/css2?family=VT323&display=swap",
+        "usage": "Subheadings, Labels, Terminal Text, Tables",
+        "class": "font-terminal"
+      },
+      {
+        "family": "Space Mono",
+        "url": "https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&display=swap",
+        "usage": "Body text, dense data, charts",
+        "class": "font-mono"
+      }
+    ],
+    "rules": [
+      "NEVER use Inter or Roboto.",
+      "Headings (h1-h3) MUST use 'Press Start 2P'.",
+      "Table headers and data cells MUST use 'VT323' or 'Space Mono'.",
+      "Text should often have a subtle text-shadow to mimic CRT bleed."
+    ]
+  },
+  "colors": {
+    "palette": {
+      "background": {
+        "void": "#050505",
+        "deep": "#0a0b10",
+        "panel": "#111111"
+      },
+      "primary": {
+        "cyan": "#00f3ff",
+        "neon_green": "#39ff14",
+        "hot_pink": "#ff0099",
+        "amber": "#ffb000"
+      },
+      "functional": {
+        "success": "#39ff14",
+        "error": "#ff3131",
+        "warning": "#ffb000",
+        "text_main": "#e0e0e0",
+        "text_muted": "#858585"
+      }
+    },
+    "gradients": {
+      "scanline": "linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06))",
+      "cyber_grid": "linear-gradient(transparent 95%, #00f3ff 95%), linear-gradient(90deg, transparent 95%, #00f3ff 95%)"
+    }
+  },
+  "visual_enhancers": {
+    "styles": [
+      {
+        "name": "CRT Glow",
+        "css": "text-shadow: 0 0 5px currentColor;"
+      },
+      {
+        "name": "Pixel Border",
+        "css": "box-shadow: -4px 0 0 0 currentColor, 4px 0 0 0 currentColor, 0 -4px 0 0 currentColor, 0 4px 0 0 currentColor;"
+      },
+      {
+        "name": "Scanline Overlay",
+        "instruction": "Add a fixed pointer-events-none div over the entire app with the scanline gradient."
+      }
+    ],
+    "animations": {
+      "glitch": "keyframes for text distortion on hover",
+      "blink": "cursor blinking for terminal inputs"
+    }
+  },
+  "layout": {
+    "grid_system": "Bento Grid Mode B (High Density)",
+    "container_style": "Sharp edges, 2px borders, high contrast.",
+    "spacing": "Generous padding inside containers (p-6, p-8) but tight gaps between containers (gap-4) to simulate a dashboard cockpit."
+  },
+  "components": {
+    "buttons": {
+      "style": "Retro Arcade Button",
+      "classes": "font-pixel uppercase text-xs tracking-widest border-2 border-primary bg-background hover:bg-primary hover:text-background transition-colors active:translate-y-1 shadow-[4px_4px_0px_0px_rgba(0,243,255,0.5)]",
+      "interaction": "No ripples. Hard color swaps."
+    },
+    "cards": {
+      "style": "Terminal Window",
+      "classes": "border-2 border-primary/30 bg-background/95 relative overflow-hidden",
+      "decoration": "Optional: Add a 'header bar' strip at the top of cards with striped pattern."
+    },
+    "charts": {
+      "library": "Recharts",
+      "style": "Retro Line",
+      "props": {
+        "strokeWidth": 2,
+        "dot": false,
+        "isAnimationActive": true,
+        "type": "step"
+      },
+      "grid": {
+        "stroke": "#333",
+        "strokeDasharray": "3 3"
+      }
+    },
+    "tables": {
+      "style": "Data Terminal",
+      "header_classes": "font-pixel text-xs text-primary uppercase border-b-2 border-primary/50",
+      "row_classes": "font-mono hover:bg-primary/10 transition-colors border-b border-white/5",
+      "cell_classes": "py-4"
+    }
+  },
+  "image_urls": {
+    "background_textures": [
+      {
+        "url": "https://images.pexels.com/photos/1089438/pexels-photo-1089438.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+        "description": "Green Matrix Code - Use for subtle overlay or 'Loading' screens",
+        "category": "texture"
+      }
+    ],
+    "placeholders": []
+  },
+  "instructions_to_main_agent": [
+    "1. INSTALL FONTS: Add the Google Fonts links to public/index.html immediately.",
+    "2. CONFIGURE TAILWIND: Update tailwind.config.js to include 'pixel', 'terminal', and 'mono' font families defined in typography section.",
+    "3. GLOBAL CSS: Add the 'scanline' overlay to index.css or App.css. It's crucial for the vibe.",
+    "4. DARK MODE DEFAULT: Ensure the app is permanently in dark mode (or user setting defaults to dark). The colors provided are for dark mode.",
+    "5. CHARTS: When using Recharts, setting type='step' or 'stepAfter' gives a very retro/digital look compared to smooth curves. Use it.",
+    "6. ICONS: Use Lucide icons but keep them small and sharp. Color them strictly with the palette (Cyan, Magenta, Green).",
+    "7. NO ROUNDED CORNERS: Override shadcn defaults. Set --radius: 0px in global CSS.",
+    "8. DATA-TESTID: Every interactive element must have a data-testid attribute."
+  ],
+  "universal_guidelines": [
+    "Create depth through z-index and border-color contrast, not shadow blur.",
+    "Avoid gradients for backgrounds unless it's a specific retro-grid effect.",
+    "Do not use 'transition: all'. Animate specific properties.",
+    "Never use centered layouts for the main dashboard; use the grid.",
+    "Use 'sonner' for toasts."
+  ]
+}
