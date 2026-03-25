@@ -109,8 +109,8 @@ const HistoryChart = ({ history }) => {
         </div>
       </div>
 
-      <div className="h-[300px] md:h-[400px]">
-        <ResponsiveContainer width="100%" height="100%">
+      <div className="h-[300px] md:h-[400px]" style={{ minWidth: '200px', minHeight: '200px' }}>
+        <ResponsiveContainer width="100%" height="100%" minWidth={200} minHeight={200}>
           <LineChart data={chartData} margin={{ top: 10, right: 30, left: 10, bottom: 10 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#333" />
             <XAxis 
