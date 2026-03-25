@@ -10,12 +10,18 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 
 const HoldingsTable = ({ holdings }) => {
   const formatEUR = (value) => {
-    return new Intl.NumberFormat('de-DE', {
-      style: 'currency',
-      currency: 'EUR',
+    return `€${value.toLocaleString('en-US', {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2
-    }).format(value);
+    })}`;
+  };
+
+  const formatPrice = (value) => {
+    // Show 4 decimal places for prices
+    return `€${value.toLocaleString('en-US', {
+      minimumFractionDigits: 4,
+      maximumFractionDigits: 4
+    })}`;
   };
 
   const formatAmount = (value) => {
@@ -66,7 +72,7 @@ const HoldingsTable = ({ holdings }) => {
                 {formatAmount(holding.amount)}
               </TableCell>
               <TableCell className="font-terminal text-xl text-right text-muted-foreground">
-                {formatEUR(holding.price_eur)}
+                {formatPrice(holding.price_eur)}
               </TableCell>
               <TableCell className="font-terminal text-xl text-right text-neon-green font-bold">
                 {formatEUR(holding.value_eur)}

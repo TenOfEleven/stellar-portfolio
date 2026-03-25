@@ -167,6 +167,7 @@ async def fetch_xlm_price_eur() -> float:
                 data = response.json()
                 price = data.get('stellar', {}).get('eur', 0)
                 if price > 0:
+                    logger.info(f"XLM price from CoinGecko: €{price}")
                     return price
     except Exception as e:
         logger.warning(f"CoinGecko API failed: {e}")
@@ -185,28 +186,112 @@ async def fetch_xlm_price_eur() -> float:
                 if eur_response.status_code == 200:
                     eur_data = eur_response.json()
                     eur_rate = float(eur_data.get('data', {}).get('rateUsd', 1.1))
-                    return usd_price / eur_rate
+                    price = usd_price / eur_rate
+                    logger.info(f"XLM price from CoinCap: €{price}")
+                    return price
     except Exception as e:
         logger.warning(f"CoinCap API fallback failed: {e}")
     
-    # Last fallback - use a hardcoded approximate if all APIs fail
-    logger.warning("All price APIs failed, using cached/approximate price")
-    return 0.10  # Approximate XLM price as last resort
+    # Last fallback - use approximate price
+    logger.warning("All price APIs failed, using approximate price")
+    return 0.15  # Approximate XLM price as last resort
+
+# Cache for XLM price to avoid repeated API calls
+_xlm_price_cache = {"price": 0.0, "timestamp": None}
+_eur_usd_rate_cache = {"rate": 0.92, "timestamp": None}
+
+async def get_eur_usd_rate() -> float:
+    """Get EUR to USD rate"""
+    global _eur_usd_rate_cache
+    now = datetime.now(timezone.utc)
+    # Cache rate for 5 minutes
+    if _eur_usd_rate_cache["timestamp"] and (now - _eur_usd_rate_cache["timestamp"]).seconds < 300:
+        return _eur_usd_rate_cache["rate"]
+    
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.get("https://api.coincap.io/v2/rates/euro")
+            if response.status_code == 200:
+                data = response.json()
+                rate = float(data.get('data', {}).get('rateUsd', 1.08))
+                _eur_usd_rate_cache["rate"] = rate
+                _eur_usd_rate_cache["timestamp"] = now
+                return rate
+    except:
+        pass
+    return 1.08  # Fallback EUR/USD rate
 
 async def get_asset_price_eur(asset_code: str, issuer: str = "") -> float:
     """Get price for a Stellar asset in EUR"""
+    global _xlm_price_cache
+    
+    # Helper to get cached XLM price
+    async def get_xlm_price():
+        now = datetime.now(timezone.utc)
+        # Cache XLM price for 60 seconds
+        if _xlm_price_cache["timestamp"] and (now - _xlm_price_cache["timestamp"]).seconds < 60:
+            return _xlm_price_cache["price"]
+        price = await fetch_xlm_price_eur()
+        _xlm_price_cache["price"] = price
+        _xlm_price_cache["timestamp"] = now
+        return price
+    
     # For XLM (native)
     if asset_code == "XLM" or asset_code == "native":
-        return await fetch_xlm_price_eur()
+        return await get_xlm_price()
     
-    # For other Stellar assets, we'd need a mapping to CoinGecko IDs
-    # Common Stellar assets
+    # yXLM (yield-bearing XLM) should have same price as XLM
+    if asset_code.upper() == "YXLM":
+        return await get_xlm_price()
+    
+    # For EUR stablecoins - always 1 EUR
+    if asset_code.upper() in ["EURC", "EURT"]:
+        return 1.0
+    
+    # For USD stablecoins - convert to EUR
+    if asset_code.upper() in ["USDC", "USDT", "YUSDС"]:
+        eur_rate = await get_eur_usd_rate()
+        return 1.0 / eur_rate  # 1 USD in EUR
+    
+    # AQUA - use CoinCap as primary (CoinGecko rate limited)
+    if asset_code.upper() == "AQUA":
+        try:
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                # Try CoinCap for AQUA
+                response = await client.get("https://api.coincap.io/v2/assets/aquarius")
+                if response.status_code == 200:
+                    data = response.json()
+                    usd_price = float(data.get('data', {}).get('priceUsd', 0))
+                    if usd_price > 0:
+                        eur_rate = await get_eur_usd_rate()
+                        price = usd_price / eur_rate
+                        logger.info(f"AQUA price from CoinCap: €{price}")
+                        return price
+        except Exception as e:
+            logger.warning(f"CoinCap AQUA price failed: {e}")
+        
+        # Fallback: approximate AQUA price based on market data (~$0.00035)
+        eur_rate = await get_eur_usd_rate()
+        return 0.00035 / eur_rate
+    
+    # SHX - Stronghold token
+    if asset_code.upper() == "SHX":
+        try:
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                response = await client.get("https://api.coincap.io/v2/assets/stronghold-token")
+                if response.status_code == 200:
+                    data = response.json()
+                    usd_price = float(data.get('data', {}).get('priceUsd', 0))
+                    if usd_price > 0:
+                        eur_rate = await get_eur_usd_rate()
+                        return usd_price / eur_rate
+        except:
+            pass
+    
+    # CoinGecko as last resort (may be rate limited)
     asset_mapping = {
-        "USDC": "usd-coin",
-        "yUSDC": "usd-coin",  # Yield USDC approximated as USDC
         "AQUA": "aquarius",
         "SHX": "stronghold-token",
-        "EURC": "euro-coin",
     }
     
     coingecko_id = asset_mapping.get(asset_code.upper())
@@ -219,19 +304,12 @@ async def get_asset_price_eur(asset_code: str, issuer: str = "") -> float:
                 )
                 if response.status_code == 200:
                     data = response.json()
-                    return data.get(coingecko_id, {}).get('eur', 0)
+                    price = data.get(coingecko_id, {}).get('eur', 0)
+                    if price > 0:
+                        logger.info(f"{asset_code} price from CoinGecko: €{price}")
+                        return price
         except Exception as e:
             logger.warning(f"Failed to get price for {asset_code}: {e}")
-    
-    # For stablecoins pegged to EUR/USD
-    if asset_code.upper() in ["USDC", "USDT", "yUSDC"]:
-        # Get EUR/USD rate and return ~1 USD in EUR
-        xlm_price = await fetch_xlm_price_eur()
-        if xlm_price > 0:
-            return 0.92  # Approximate EUR/USD rate
-    
-    if asset_code.upper() in ["EURC", "EURT"]:
-        return 1.0  # EUR stablecoins
     
     return 0.0  # Unknown asset
 
