@@ -9,6 +9,9 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 const HoldingsTable = ({ holdings }) => {
+  // Calculate total value for percentage allocation
+  const totalValue = holdings?.reduce((sum, h) => sum + (h.value_eur || 0), 0) || 0;
+
   const formatEUR = (value) => {
     return `€${value.toLocaleString('en-US', {
       minimumFractionDigits: 2,
@@ -33,6 +36,12 @@ const HoldingsTable = ({ holdings }) => {
     return value.toLocaleString('en-US', { maximumFractionDigits: 4 });
   };
 
+  const formatPercent = (value, total) => {
+    if (total === 0) return '0.00%';
+    const percent = (value / total) * 100;
+    return `${percent.toFixed(2)}%`;
+  };
+
   if (!holdings || holdings.length === 0) {
     return (
       <div className="empty-state" data-testid="holdings-empty">
@@ -50,6 +59,7 @@ const HoldingsTable = ({ holdings }) => {
             <TableHead className="font-pixel text-[10px] text-neon-cyan uppercase text-right">Amount</TableHead>
             <TableHead className="font-pixel text-[10px] text-neon-cyan uppercase text-right">Price</TableHead>
             <TableHead className="font-pixel text-[10px] text-neon-cyan uppercase text-right">Value</TableHead>
+            <TableHead className="font-pixel text-[10px] text-neon-amber uppercase text-right">Alloc</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -76,6 +86,9 @@ const HoldingsTable = ({ holdings }) => {
               </TableCell>
               <TableCell className="font-terminal text-xl text-right text-neon-green font-bold">
                 {formatEUR(holding.value_eur)}
+              </TableCell>
+              <TableCell className="font-terminal text-xl text-right text-neon-amber font-bold">
+                {formatPercent(holding.value_eur, totalValue)}
               </TableCell>
             </TableRow>
           ))}
