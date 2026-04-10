@@ -39,8 +39,13 @@ const LPPositionsTable = ({ positions }) => {
           {positions.map((position, index) => (
             <TableRow key={position.id || index} data-testid={`lp-row-${index}`}>
               <TableCell className="font-mono">
-                <div className="text-sm text-muted-foreground" title={position.pool_id}>
-                  {position.pool_id}
+                <div className="flex flex-col">
+                  <div className="text-sm text-muted-foreground" title={position.pool_id}>
+                    {position.pool_id}
+                  </div>
+                  {position.pool_type === 'soroban' && (
+                    <span className="text-[10px] text-neon-green font-pixel">AQUARIUS</span>
+                  )}
                 </div>
               </TableCell>
               <TableCell className="font-terminal text-xl">

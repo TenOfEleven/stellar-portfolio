@@ -65,11 +65,26 @@ class LPPosition(BaseModel):
     model_config = ConfigDict(extra="ignore")
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     pool_id: str
+    pool_type: str = "stellar"  # "stellar" or "soroban"
     assets: List[str] = []
     share: float = 0.0
     share_percentage: float = 0.0
     value_eur: float = 0.0
     created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+
+class SorobanLPConfig(BaseModel):
+    """Configuration for manually tracked Soroban LP positions"""
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    pool_address: str
+    pool_hash: str = ""
+    assets: List[str] = []
+    user_value_usd: float = 0.0  # Last known USD value from Aquarius
+    total_xlm: float = 0.0
+    total_other_asset: float = 0.0
+    total_shares: float = 0.0
+    enabled: bool = True
+    last_updated: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
 class PriceHistory(BaseModel):
     model_config = ConfigDict(extra="ignore")
@@ -397,11 +412,40 @@ async def calculate_portfolio() -> PortfolioResponse:
                 
                 lp_positions.append(LPPosition(
                     pool_id=pool['pool_id'][:16] + "...",
+                    pool_type="stellar",
                     assets=asset_names,
                     share=round(user_shares, 4),
                     share_percentage=round(share_fraction * 100, 4),
                     value_eur=round(user_lp_value, 2)
                 ))
+    
+    # Add Soroban LP positions from database
+    soroban_lps = await db.soroban_lp_configs.find({"enabled": True}, {"_id": 0}).to_list(100)
+    for slp in soroban_lps:
+        try:
+            # Calculate value based on stored USD value, convert to EUR
+            usd_value = slp.get('user_value_usd', 0)
+            if usd_value > 0:
+                eur_rate = await get_eur_usd_rate()
+                value_eur = usd_value / eur_rate
+                lp_value_eur += value_eur
+                
+                # Calculate approximate share percentage
+                total_xlm = slp.get('total_xlm', 0)
+                xlm_price = await get_asset_price_eur('XLM')
+                pool_xlm_value_usd = total_xlm * xlm_price * eur_rate  # Convert to USD
+                share_pct = (usd_value / (pool_xlm_value_usd * 2)) * 100 if pool_xlm_value_usd > 0 else 0
+                
+                lp_positions.append(LPPosition(
+                    pool_id=slp.get('pool_address', '')[:16] + "...",
+                    pool_type="soroban",
+                    assets=slp.get('assets', ['XLM', 'SHX']),
+                    share=0,  # Not available for Soroban pools
+                    share_percentage=round(share_pct, 4),
+                    value_eur=round(value_eur, 2)
+                ))
+        except Exception as e:
+            logger.error(f"Error processing Soroban LP: {e}")
     
     # Sort holdings by value
     holdings.sort(key=lambda x: x.value_eur, reverse=True)
@@ -549,6 +593,61 @@ async def get_xlm_price():
     price = await fetch_xlm_price_eur()
     return {"asset": "XLM", "price_eur": price, "currency": "EUR"}
 
+# ============== Soroban LP Management ==============
+
+class SorobanLPCreate(BaseModel):
+    pool_address: str
+    pool_hash: str = ""
+    assets: List[str]
+    user_value_usd: float
+    total_xlm: float = 0.0
+    total_other_asset: float = 0.0
+    total_shares: float = 0.0
+
+@api_router.get("/soroban-lps")
+async def get_soroban_lps():
+    """Get all configured Soroban LP positions"""
+    lps = await db.soroban_lp_configs.find({}, {"_id": 0}).to_list(100)
+    return {"soroban_lps": lps}
+
+@api_router.post("/soroban-lps")
+async def add_soroban_lp(lp: SorobanLPCreate):
+    """Add a new Soroban LP position"""
+    config = SorobanLPConfig(
+        pool_address=lp.pool_address,
+        pool_hash=lp.pool_hash,
+        assets=lp.assets,
+        user_value_usd=lp.user_value_usd,
+        total_xlm=lp.total_xlm,
+        total_other_asset=lp.total_other_asset,
+        total_shares=lp.total_shares,
+        enabled=True
+    )
+    await db.soroban_lp_configs.insert_one(config.model_dump())
+    return {"message": "Soroban LP added", "config": config}
+
+@api_router.put("/soroban-lps/{pool_address}")
+async def update_soroban_lp(pool_address: str, user_value_usd: float):
+    """Update the USD value for a Soroban LP position"""
+    result = await db.soroban_lp_configs.update_one(
+        {"pool_address": pool_address},
+        {"$set": {
+            "user_value_usd": user_value_usd,
+            "last_updated": datetime.now(timezone.utc).isoformat()
+        }}
+    )
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="Soroban LP not found")
+    return {"message": "Soroban LP updated"}
+
+@api_router.delete("/soroban-lps/{pool_address}")
+async def delete_soroban_lp(pool_address: str):
+    """Delete a Soroban LP position"""
+    result = await db.soroban_lp_configs.delete_one({"pool_address": pool_address})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Soroban LP not found")
+    return {"message": "Soroban LP deleted"}
+
 # Include the router in the main app
 app.include_router(api_router)
 
@@ -566,12 +665,31 @@ async def startup_event():
     # Create indexes
     await db.portfolio_snapshots.create_index("timestamp")
     await db.price_history.create_index([("asset_code", 1), ("timestamp", -1)])
+    await db.soroban_lp_configs.create_index("pool_address", unique=True)
     
     # Initialize settings if not exists
     settings = await db.settings.find_one({})
     if not settings:
         default_settings = Settings(stellar_address=STELLAR_ADDRESS)
         await db.settings.insert_one(default_settings.model_dump())
+    
+    # Initialize Aquarius XLM/SHX Soroban LP if not exists
+    aquarius_xlm_shx = await db.soroban_lp_configs.find_one({
+        "pool_address": "CD65EROVLTDU2DWM4ZUJF4NHK4A46DX2UAOGCV7YDFPCSLFYNH57KGIY"
+    })
+    if not aquarius_xlm_shx:
+        aquarius_config = SorobanLPConfig(
+            pool_address="CD65EROVLTDU2DWM4ZUJF4NHK4A46DX2UAOGCV7YDFPCSLFYNH57KGIY",
+            pool_hash="9ac7a...d718e",
+            assets=["XLM", "SHX"],
+            user_value_usd=38.64,  # From Aquarius screenshot
+            total_xlm=1108500.7192374,
+            total_other_asset=43052677.7741729,  # SHX
+            total_shares=5403440,
+            enabled=True
+        )
+        await db.soroban_lp_configs.insert_one(aquarius_config.model_dump())
+        logger.info("Initialized Aquarius XLM/SHX Soroban LP position")
     
     logger.info(f"Stellar Portfolio Tracker started for address: {STELLAR_ADDRESS[:16]}...")
 
