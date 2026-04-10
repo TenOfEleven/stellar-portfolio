@@ -194,7 +194,7 @@ const Dashboard = ({
                 ({portfolio?.lp_positions?.length || 0} POOLS)
               </span>
             </h2>
-            <LPPositionsTable positions={portfolio?.lp_positions || []} />
+            <LPPositionsTable positions={portfolio?.lp_positions || []} onRefresh={onRefresh} />
           </div>
         </section>
       </div>
