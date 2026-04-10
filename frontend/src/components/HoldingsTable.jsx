@@ -56,7 +56,7 @@ const HoldingsTable = ({ holdings }) => {
         <TableHeader>
           <TableRow>
             <TableHead className="font-pixel text-[10px] text-neon-cyan uppercase">Asset</TableHead>
-            <TableHead className="font-pixel text-[10px] text-neon-cyan uppercase text-right">Amount</TableHead>
+            <TableHead className="font-pixel text-[10px] text-neon-cyan uppercase text-right">Amnt</TableHead>
             <TableHead className="font-pixel text-[10px] text-neon-cyan uppercase text-right">Price</TableHead>
             <TableHead className="font-pixel text-[10px] text-neon-cyan uppercase text-right">Value</TableHead>
             <TableHead className="font-pixel text-[10px] text-neon-amber uppercase text-right">Alloc</TableHead>
