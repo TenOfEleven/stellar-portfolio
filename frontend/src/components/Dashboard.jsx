@@ -126,7 +126,7 @@ const Dashboard = ({
       {/* Settings Panel */}
       <Collapsible open={settingsOpen} onOpenChange={setSettingsOpen}>
         <CollapsibleContent>
-          <SettingsPanel settings={settings} />
+          <SettingsPanel settings={settings} onSettingsUpdate={onRefresh} />
         </CollapsibleContent>
       </Collapsible>
 

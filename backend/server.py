@@ -547,6 +547,51 @@ async def update_settings(dark_mode: bool = True):
     )
     return await get_settings()
 
+class UpdateStellarAddressRequest(BaseModel):
+    stellar_address: str
+
+@api_router.put("/settings/address", response_model=Settings)
+async def update_stellar_address(request: UpdateStellarAddressRequest):
+    """Update the tracked Stellar address"""
+    address = request.stellar_address.strip()
+    
+    # Validate address format
+    if not address:
+        raise HTTPException(status_code=400, detail="Address cannot be empty")
+    if not address.startswith('G'):
+        raise HTTPException(status_code=400, detail="Invalid Stellar address format. Must start with 'G'")
+    if len(address) != 56:
+        raise HTTPException(status_code=400, detail="Invalid Stellar address length. Must be 56 characters")
+    
+    # Update settings with new address
+    await db.settings.update_one(
+        {},
+        {"$set": {"stellar_address": address}},
+        upsert=True
+    )
+    
+    # Update the global STELLAR_ADDRESS variable for immediate effect
+    global STELLAR_ADDRESS
+    STELLAR_ADDRESS = address
+    
+    logger.info(f"Stellar address updated to: {address[:16]}...")
+    return await get_settings()
+
+@api_router.delete("/settings/address", response_model=Settings)
+async def clear_stellar_address():
+    """Clear the tracked Stellar address"""
+    await db.settings.update_one(
+        {},
+        {"$set": {"stellar_address": ""}},
+        upsert=True
+    )
+    
+    global STELLAR_ADDRESS
+    STELLAR_ADDRESS = ""
+    
+    logger.info("Stellar address cleared")
+    return await get_settings()
+
 @api_router.get("/export")
 async def export_csv():
     """Export current holdings and LP positions as CSV"""
